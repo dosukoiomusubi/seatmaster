@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>席替えマスター</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", sans-serif;
+      background: #f0f4f8;
+      color: #222;
+      overscroll-behavior: none;
+    }
+    .screen { display: none; min-height: 100vh; padding: 12px; }
+    .screen.active { display: block; }
+
+    /* タイトル */
+    #title-screen {
+      text-align: center;
+      padding-top: 15vh;
+    }
+    #title-screen h1 {
+      font-size: 2rem;
+      margin-bottom: 8px;
+      color: #1a365d;
+    }
+    #title-screen p {
+      color: #666;
+      margin-bottom: 40px;
+      font-size: 0.95rem;
+    }
+    .btn {
+      background: #3182ce;
+      color: white;
+      border: none;
+      padding: 14px 32px;
+      font-size: 1.1rem;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .btn:active { background: #2b6cb0; }
+    .btn-secondary {
+      background: #718096;
+      margin-top: 12px;
+    }
+
+    /* ゲーム画面 */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      font-size: 0.95rem;
+    }
+    .score-box {
+      background: #ebf8ff;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-weight: bold;
+      color: #2b6cb0;
+    }
+
+    .classroom {
+      background: #fff;
+      border-radius: 12px;
+      padding: 10px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .blackboard {
+      background: #2f855a;
+      color: white;
+      text-align: center;
+      padding: 6px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      margin-bottom: 10px;
+    }
+    .seats {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 6px;
+    }
+    .seat {
+      aspect-ratio: 1;
+      background: #edf2f7;
+      border: 2px solid #cbd5e0;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.15s;
+      text-align: center;
+      padding: 2px;
+      line-height: 1.2;
+    }
+    .seat.filled {
+      background: #bee3f8;
+      border-color: #63b3ed;
+    }
+    .seat.selected-target {
+      border-color: #3182ce;
+      background: #90cdf4;
+    }
+    .seat.window { /* 窓側の列を少し色分け */
+      background: #e6fffa;
+    }
+    .seat.window.filled {
+      background: #b2f5ea;
+    }
+
+    .students-area {
+      background: #fff;
+      border-radius: 12px;
+      padding: 10px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .students-area h3 {
+      font-size: 0.9rem;
+      margin-bottom: 8px;
+      color: #4a5568;
+    }
+    .student-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      max-height: 22vh;
+      overflow-y: auto;
+    }
+    .student-chip {
+      background: #edf2f7;
+      border: 2px solid #cbd5e0;
+      border-radius: 20px;
+      padding: 6px 10px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .student-chip.selected {
+      background: #3182ce;
+      color: white;
+      border-color: #2b6cb0;
+    }
+    .student-chip.rare {
+      background: #fefcbf;
+      border-color: #d69e2e;
+    }
+    .student-chip.rare.selected {
+      background: #d69e2e;
+      color: white;
+    }
+
+    .conditions {
+      background: #fffaf0;
+      border-radius: 12px;
+      padding: 10px;
+      margin-bottom: 12px;
+      font-size: 0.82rem;
+      line-height: 1.5;
+    }
+    .conditions h3 {
+      font-size: 0.9rem;
+      margin-bottom: 6px;
+      color: #c05621;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+    }
+    .actions .btn {
+      flex: 1;
+      padding: 12px;
+      font-size: 1rem;
+    }
+
+    /* 結果画面 */
+    #result-screen {
+      text-align: center;
+      padding-top: 10vh;
+    }
+    .result-score {
+      font-size: 3rem;
+      font-weight: bold;
+      color: #2b6cb0;
+      margin: 16px 0;
+    }
+    .result-message {
+      font-size: 1.1rem;
+      margin-bottom: 24px;
+      color: #4a5568;
+    }
+    .highscore {
+      background: #fefcbf;
+      display: inline-block;
+      padding: 8px 20px;
+      border-radius: 20px;
+      margin-bottom: 30px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- タイトル画面 -->
+  <div id="title-screen" class="screen active">
+    <h1>席替えマスター</h1>
+    <p>生徒たちの希望を叶えて<br>ハイスコアを目指せ！</p>
+    <button class="btn" onclick="startGame()">ゲームスタート</button>
+    <br>
+    <button class="btn btn-secondary" onclick="alert('デイリーチャレンジは今後実装予定です')">デイリーチャレンジ</button>
+  </div>
+
+  <!-- ゲーム画面 -->
+  <div id="game-screen" class="screen">
+    <div class="header">
+      <div>残り生徒: <span id="remaining">30</span></div>
+      <div class="score-box">スコア: <span id="current-score">0</span></div>
+    </div>
+
+    <div class="classroom">
+      <div class="blackboard">教 壇</div>
+      <div class="seats" id="seats"></div>
+    </div>
+
+    <div class="students-area">
+      <h3>生徒を選んで席をタップ（<span id="selected-name">未選択</span>）</h3>
+      <div class="student-list" id="student-list"></div>
+    </div>
+
+    <div class="conditions" id="conditions">
+      <h3>今回の条件</h3>
+      <div id="condition-list"></div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-secondary" onclick="resetSeats()">リセット</button>
+      <button class="btn" onclick="finishGame()">決定する</button>
+    </div>
+  </div>
+
+  <!-- 結果画面 -->
+  <div id="result-screen" class="screen">
+    <h2>結果発表</h2>
+    <div class="result-score" id="final-score">0</div>
+    <div class="result-message" id="result-message"></div>
+    <div class="highscore" id="highscore-display"></div>
+    <br>
+    <button class="btn" onclick="startGame()">もう一度遊ぶ</button>
+    <br>
+    <button class="btn btn-secondary" onclick="showTitle()">タイトルへ</button>
+  </div>
+
+<script>
+// ===================== データ =====================
+const firstNames = ["佐藤","鈴木","高橋","田中","伊藤","渡辺","山本","中村","小林","加藤","吉田","山田","佐々木","松本","井上","木村","林","斎藤","清水","山口","森","阿部","池田","橋本","山下"];
+const rareNames = ["五十嵐","神谷","月島","鳳条","黒崎","白石"];
+const traits = [
+  {id:"front", label:"最前列希望", score:12},
+  {id:"back", label:"後ろの席希望", score:10},
+  {id:"window", label:"窓側希望", score:11},
+  {id:"corridor", label:"廊下側希望", score:9},
+  {id:"alone", label:"あまり人と近いの嫌", score:8},
+  {id:"social", label:"友達の近くがいい", score:10},
+  {id:"quiet", label:"静かな環境希望", score:7},
+  {id:"teacher", label:"先生の近くがいい", score:9}
+];
+
+let students = [];
+let seats = []; // 30個の配列。中身はstudentId or null
+let selectedStudentId = null;
+let conditions = [];
+let highScore = localStorage.getItem("seatmaster_highscore") || 0;
+
+// ===================== 初期化 =====================
+function generateStudents() {
+  students = [];
+  // 普通の生徒24人
+  for (let i = 0; i < 24; i++) {
+    const name = firstNames[i % firstNames.length] + (i > 14 ? "さん" : "");
+    students.push({
+      id: i,
+      name: name,
+      rare: false,
+      traits: []
+    });
+  }
+  // レアキャラ6人
+  rareNames.forEach((name, idx) => {
+    students.push({
+      id: 24 + idx,
+      name: name,
+      rare: true,
+      traits: []
+    });
+  });
+
+  // ランダムに特性を付ける（1人1〜2個）
+  students.forEach(s => {
+    const num = Math.random() < 0.6 ? 1 : 2;
+    const shuffled = [...traits].sort(() => Math.random() - 0.5);
+    s.traits = shuffled.slice(0, num).map(t => t.id);
+  });
+
+  // 条件を生成（見やすいように6〜8個）
+  conditions = [];
+  const used = new Set();
+  students.forEach(s => {
+    s.traits.forEach(t => {
+      if (!used.has(s.id + t) && conditions.length < 8) {
+        const trait = traits.find(tr => tr.id === t);
+        conditions.push({
+          studentId: s.id,
