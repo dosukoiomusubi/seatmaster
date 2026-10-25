@@ -15,7 +15,6 @@
     .screen { display: none; min-height: 100vh; padding: 12px; }
     .screen.active { display: block; }
 
-    /* タイトル */
     #title-screen {
       text-align: center;
       padding-top: 15vh;
@@ -39,6 +38,7 @@
       border-radius: 12px;
       cursor: pointer;
       font-weight: bold;
+      display: inline-block;
     }
     .btn:active { background: #2b6cb0; }
     .btn-secondary {
@@ -46,7 +46,6 @@
       margin-top: 12px;
     }
 
-    /* ゲーム画面 */
     .header {
       display: flex;
       justify-content: space-between;
@@ -91,23 +90,18 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 0.7rem;
+      font-size: 0.68rem;
       font-weight: bold;
       cursor: pointer;
-      transition: 0.15s;
       text-align: center;
       padding: 2px;
-      line-height: 1.2;
+      line-height: 1.15;
     }
     .seat.filled {
       background: #bee3f8;
       border-color: #63b3ed;
     }
-    .seat.selected-target {
-      border-color: #3182ce;
-      background: #90cdf4;
-    }
-    .seat.window { /* 窓側の列を少し色分け */
+    .seat.window {
       background: #e6fffa;
     }
     .seat.window.filled {
@@ -180,7 +174,6 @@
       font-size: 1rem;
     }
 
-    /* 結果画面 */
     #result-screen {
       text-align: center;
       padding-top: 10vh;
@@ -208,16 +201,14 @@
 </head>
 <body>
 
-  <!-- タイトル画面 -->
   <div id="title-screen" class="screen active">
     <h1>席替えマスター</h1>
     <p>生徒たちの希望を叶えて<br>ハイスコアを目指せ！</p>
-    <button class="btn" onclick="startGame()">ゲームスタート</button>
+    <button class="btn" id="start-btn">ゲームスタート</button>
     <br>
-    <button class="btn btn-secondary" onclick="alert('デイリーチャレンジは今後実装予定です')">デイリーチャレンジ</button>
+    <button class="btn btn-secondary" id="daily-btn">デイリーチャレンジ</button>
   </div>
 
-  <!-- ゲーム画面 -->
   <div id="game-screen" class="screen">
     <div class="header">
       <div>残り生徒: <span id="remaining">30</span></div>
@@ -234,31 +225,29 @@
       <div class="student-list" id="student-list"></div>
     </div>
 
-    <div class="conditions" id="conditions">
+    <div class="conditions">
       <h3>今回の条件</h3>
       <div id="condition-list"></div>
     </div>
 
     <div class="actions">
-      <button class="btn btn-secondary" onclick="resetSeats()">リセット</button>
-      <button class="btn" onclick="finishGame()">決定する</button>
+      <button class="btn btn-secondary" id="reset-btn">リセット</button>
+      <button class="btn" id="finish-btn">決定する</button>
     </div>
   </div>
 
-  <!-- 結果画面 -->
   <div id="result-screen" class="screen">
     <h2>結果発表</h2>
     <div class="result-score" id="final-score">0</div>
     <div class="result-message" id="result-message"></div>
     <div class="highscore" id="highscore-display"></div>
     <br>
-    <button class="btn" onclick="startGame()">もう一度遊ぶ</button>
+    <button class="btn" id="retry-btn">もう一度遊ぶ</button>
     <br>
-    <button class="btn btn-secondary" onclick="showTitle()">タイトルへ</button>
+    <button class="btn btn-secondary" id="title-btn">タイトルへ</button>
   </div>
 
 <script>
-// ===================== データ =====================
 const firstNames = ["佐藤","鈴木","高橋","田中","伊藤","渡辺","山本","中村","小林","加藤","吉田","山田","佐々木","松本","井上","木村","林","斎藤","清水","山口","森","阿部","池田","橋本","山下"];
 const rareNames = ["五十嵐","神谷","月島","鳳条","黒崎","白石"];
 const traits = [
@@ -273,25 +262,21 @@ const traits = [
 ];
 
 let students = [];
-let seats = []; // 30個の配列。中身はstudentId or null
+let seats = [];
 let selectedStudentId = null;
 let conditions = [];
-let highScore = localStorage.getItem("seatmaster_highscore") || 0;
+let highScore = Number(localStorage.getItem("seatmaster_highscore")) || 0;
 
-// ===================== 初期化 =====================
 function generateStudents() {
   students = [];
-  // 普通の生徒24人
   for (let i = 0; i < 24; i++) {
-    const name = firstNames[i % firstNames.length] + (i > 14 ? "さん" : "");
     students.push({
       id: i,
-      name: name,
+      name: firstNames[i % firstNames.length],
       rare: false,
       traits: []
     });
   }
-  // レアキャラ6人
   rareNames.forEach((name, idx) => {
     students.push({
       id: 24 + idx,
@@ -301,19 +286,220 @@ function generateStudents() {
     });
   });
 
-  // ランダムに特性を付ける（1人1〜2個）
   students.forEach(s => {
-    const num = Math.random() < 0.6 ? 1 : 2;
+    const num = Math.random() < 0.65 ? 1 : 2;
     const shuffled = [...traits].sort(() => Math.random() - 0.5);
     s.traits = shuffled.slice(0, num).map(t => t.id);
   });
 
-  // 条件を生成（見やすいように6〜8個）
   conditions = [];
   const used = new Set();
   students.forEach(s => {
     s.traits.forEach(t => {
-      if (!used.has(s.id + t) && conditions.length < 8) {
+      if (!used.has(s.id + t) && conditions.length < 7) {
         const trait = traits.find(tr => tr.id === t);
         conditions.push({
           studentId: s.id,
+          traitId: t,
+          text: (s.rare ? "★" : "・") + s.name + "：" + trait.label,
+          score: trait.score,
+          rare: s.rare
+        });
+        used.add(s.id + t);
+      }
+    });
+  });
+}
+
+function startGame() {
+  generateStudents();
+  seats = Array(30).fill(null);
+  selectedStudentId = null;
+  document.getElementById("current-score").textContent = "0";
+  renderSeats();
+  renderStudents();
+  renderConditions();
+  showScreen("game-screen");
+  updateRemaining();
+}
+
+function renderSeats() {
+  const container = document.getElementById("seats");
+  container.innerHTML = "";
+  for (let i = 0; i < 30; i++) {
+    const seat = document.createElement("div");
+    seat.className = "seat";
+    if (i % 6 === 0) seat.classList.add("window");
+
+    const studentId = seats[i];
+    if (studentId !== null) {
+      const s = students.find(st => st.id === studentId);
+      seat.classList.add("filled");
+      seat.textContent = s.name;
+      if (s.rare) seat.style.background = "#fefcbf";
+    }
+
+    seat.addEventListener("click", () => onSeatTap(i));
+    container.appendChild(seat);
+  }
+}
+
+function renderStudents() {
+  const container = document.getElementById("student-list");
+  container.innerHTML = "";
+  const unplaced = students.filter(s => !seats.includes(s.id));
+  unplaced.forEach(s => {
+    const chip = document.createElement("div");
+    chip.className = "student-chip" + (s.rare ? " rare" : "");
+    if (selectedStudentId === s.id) chip.classList.add("selected");
+    chip.textContent = s.name;
+    chip.addEventListener("click", () => onStudentTap(s.id));
+    container.appendChild(chip);
+  });
+  document.getElementById("selected-name").textContent = 
+    selectedStudentId !== null ? students.find(s => s.id === selectedStudentId).name : "未選択";
+}
+
+function renderConditions() {
+  document.getElementById("condition-list").innerHTML = 
+    conditions.map(c => `<div>${c.text}</div>`).join("");
+}
+
+function onStudentTap(id) {
+  selectedStudentId = (selectedStudentId === id) ? null : id;
+  renderStudents();
+  renderSeats();
+}
+
+function onSeatTap(seatIndex) {
+  if (selectedStudentId === null) {
+    if (seats[seatIndex] !== null) {
+      selectedStudentId = seats[seatIndex];
+      seats[seatIndex] = null;
+      renderStudents();
+      renderSeats();
+      updateScore();
+      updateRemaining();
+    }
+    return;
+  }
+
+  const existing = seats[seatIndex];
+  seats[seatIndex] = selectedStudentId;
+  selectedStudentId = existing;
+
+  renderStudents();
+  renderSeats();
+  updateScore();
+  updateRemaining();
+}
+
+function updateRemaining() {
+  document.getElementById("remaining").textContent = 
+    students.filter(s => !seats.includes(s.id)).length;
+}
+
+function updateScore() {
+  let score = 0;
+  conditions.forEach(cond => {
+    const seatIndex = seats.indexOf(cond.studentId);
+    if (seatIndex === -1) return;
+
+    const row = Math.floor(seatIndex / 6);
+    const col = seatIndex % 6;
+    let satisfied = false;
+
+    switch (cond.traitId) {
+      case "front": satisfied = row <= 1; break;
+      case "back": satisfied = row >= 3; break;
+      case "window": satisfied = col === 0; break;
+      case "corridor": satisfied = col === 5; break;
+      case "alone": {
+        const neighbors = getNeighbors(seatIndex);
+        satisfied = neighbors.filter(n => seats[n] !== null).length <= 1;
+        break;
+      }
+      case "social": {
+        const nbs = getNeighbors(seatIndex);
+        satisfied = nbs.filter(n => seats[n] !== null).length >= 2;
+        break;
+      }
+      case "quiet": satisfied = row >= 2 && col <= 2; break;
+      case "teacher": satisfied = row === 0; break;
+    }
+    if (satisfied) score += cond.score;
+  });
+
+  if (seats.every(s => s !== null)) score += 30;
+
+  document.getElementById("current-score").textContent = score;
+  return score;
+}
+
+function getNeighbors(index) {
+  const row = Math.floor(index / 6);
+  const col = index % 6;
+  const n = [];
+  if (col > 0) n.push(index - 1);
+  if (col < 5) n.push(index + 1);
+  if (row > 0) n.push(index - 6);
+  if (row < 4) n.push(index + 6);
+  return n;
+}
+
+function resetSeats() {
+  if (confirm("席を全部リセットしますか？")) {
+    seats = Array(30).fill(null);
+    selectedStudentId = null;
+    renderSeats();
+    renderStudents();
+    updateScore();
+    updateRemaining();
+  }
+}
+
+function finishGame() {
+  const remaining = students.filter(s => !seats.includes(s.id)).length;
+  if (remaining > 0) {
+    if (!confirm(`まだ${remaining}人席が決まっていません。このまま採点しますか？`)) return;
+  }
+  const score = updateScore();
+  document.getElementById("final-score").textContent = score;
+
+  let message = "";
+  if (score >= 120) message = "神席替え！完璧です！";
+  else if (score >= 90) message = "かなり良い席替えです！";
+  else if (score >= 60) message = "まあまあまとまりました";
+  else message = "もう少し調整の余地がありそうです";
+
+  document.getElementById("result-message").textContent = message;
+
+  if (score > highScore) {
+    highScore = score;
+    localStorage.setItem("seatmaster_highscore", highScore);
+    document.getElementById("highscore-display").textContent = `新記録！ ハイスコア: ${highScore}`;
+  } else {
+    document.getElementById("highscore-display").textContent = `ハイスコア: ${highScore}`;
+  }
+
+  showScreen("result-screen");
+}
+
+function showScreen(id) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+}
+
+// イベント登録（onclickより確実）
+document.getElementById("start-btn").addEventListener("click", startGame);
+document.getElementById("daily-btn").addEventListener("click", () => alert("デイリーチャレンジは今後実装予定です"));
+document.getElementById("reset-btn").addEventListener("click", resetSeats);
+document.getElementById("finish-btn").addEventListener("click", finishGame);
+document.getElementById("retry-btn").addEventListener("click", startGame);
+document.getElementById("title-btn").addEventListener("click", () => showScreen("title-screen"));
+
+// 初期表示
+showScreen("title-screen");
+</script>
+</body>
+</html>
